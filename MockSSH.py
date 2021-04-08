@@ -9,7 +9,7 @@ import os
 import shlex
 import sys
 from threading import Thread
-
+from Crypto.PublicKey import RSA
 from twisted.conch import avatar, interfaces as conchinterfaces, recvline
 from twisted.conch.insults import insults
 from twisted.conch.openssh_compat import primes
@@ -17,7 +17,7 @@ from twisted.conch.ssh import (connection, factory, keys, session, transport,
                                userauth)
 from twisted.cred import checkers, portal
 from twisted.internet import reactor
-from zope.interface import implements
+from zope.interface import implements,implementer
 
 __all__ = ("SSHCommand", "PromptingCommand", "ArgumentValidatingCommand",
            "runServer", "startThreadedServer", "stopThreadedServer")
@@ -64,12 +64,12 @@ class SSHCommand(object):
         self.protocol.cmdstack[-1].resume()
 
     def ctrl_c(self):
-        print 'Received CTRL-C, exiting..'
+        print('Received CTRL-C, exiting..')
         self.writeln('^C')
         self.exit()
 
     def lineReceived(self, line):
-        print 'INPUT: %s' % line
+        print('INPUT: {line}')
 
     def resume(self):
         pass
@@ -142,7 +142,7 @@ class SSHShell(object):
         self.cmdpending = []
 
     def lineReceived(self, line):
-        print 'CMD: %s' % line
+        print(f'CMD: {line}')
         for i in [x.strip() for x in line.strip().split(';')]:
             if not len(i):
                 continue
@@ -192,10 +192,10 @@ class SSHShell(object):
 
         cmdclass = self.protocol.getCommand(cmd)
         if cmdclass:
-            print 'Command found: %s' % (line,)
+            print(f'Command found: {line}')
             self.protocol.call_command(cmdclass, *rargs)
         else:
-            print 'Command not found: %s' % (line,)
+            print(f'Command not found: {line}')
             if len(line):
                 self.protocol.writeln('MockSSH: %s: command not found' % cmd)
                 runOrPrompt()
@@ -294,8 +294,9 @@ class SSHProtocol(recvline.HistoricRecvLine):
         self.call_command(self.commands['_exit'])
 
 
+@implementer(conchinterfaces.ISession)
 class SSHAvatar(avatar.ConchUser):
-    implements(conchinterfaces.ISession)
+    #implements(conchinterfaces.ISession)
 
     def __init__(self, user, prompt, commands):
         avatar.ConchUser.__init__(self)
@@ -326,8 +327,9 @@ class SSHAvatar(avatar.ConchUser):
         pass
 
 
+@implementer(portal.IRealm)
 class SSHRealm:
-    implements(portal.IRealm)
+    #implements(portal.IRealm)
 
     def __init__(self, prompt, commands):
         self.prompt = prompt
@@ -346,10 +348,10 @@ class SSHTransport(transport.SSHServerTransport):
     hadVersion = False
 
     def connectionMade(self):
-        print 'New connection: %s:%s (%s:%s) [session: %d]' % \
+        print('New connection: %s:%s (%s:%s) [session: %d]' % \
             (self.transport.getPeer().host, self.transport.getPeer().port,
              self.transport.getHost().host, self.transport.getHost().port,
-             self.transport.sessionno)
+             self.transport.sessionno))
         self.interactors = []
         self.ttylog_open = False
         transport.SSHServerTransport.connectionMade(self)
@@ -364,7 +366,7 @@ class SSHTransport(transport.SSHServerTransport):
         transport.SSHServerTransport.dataReceived(self, data)
 
     def ssh_KEXINIT(self, packet):
-        print 'Remote SSH version: %s' % (self.otherVersionString,)
+        print(f'Remote SSH version: {self.otherVersionString}')
         return transport.SSHServerTransport.ssh_KEXINIT(self, packet)
 
     # this seems to be the only reliable place of catching lost connection
@@ -414,7 +416,7 @@ class command_exit(SSHCommand):
 # Functions
 def getRSAKeys(keypath="."):
     if not os.path.exists(keypath):
-        print "Could not find specified keypath (%s)" % keypath
+        print(f'Could not find specified keypath ({keypath})')
         sys.exit(1)
 
     pubkey = os.path.join(keypath, "public.key")
@@ -422,24 +424,24 @@ def getRSAKeys(keypath="."):
 
     if not (os.path.exists(pubkey) and os.path.exists(privkey)):
         sys.stdout.write("Generating RSA keypair... ")
-
-        from Crypto.PublicKey import RSA
+    
+        #from Crypto.PublicKey import RSA
         from twisted.python import randbytes
 
         KEY_LENGTH = 1024
 
         rsaKey = RSA.generate(KEY_LENGTH, randbytes.secureRandom)
 
-        publicKeyString = keys.Key(rsaKey).public().toString('openssh')
-        privateKeyString = keys.Key(rsaKey).toString('openssh')
+        publicKeyString = rsaKey.publickey().export_key()#keys.Key(rsaKey).public().export_key('openssh')#.toString('openssh')
+        privateKeyString = rsaKey.export_key()#keys.Key(rsaKey).export_key('openssh')#.toString('openssh')
 
-        file(pubkey, 'w+b').write(publicKeyString)
-        file(privkey, 'w+b').write(privateKeyString)
+        open(pubkey, 'w+b').write(publicKeyString)
+        open(privkey, 'w+b').write(privateKeyString)
 
         sys.stdout.write("Done.\n")
     else:
-        publicKeyString = file(pubkey).read()
-        privateKeyString = file(privkey).read()
+        publicKeyString = open(pubkey).read()
+        privateKeyString = open(privkey).read()
 
     return publicKeyString, privateKeyString
 
@@ -469,8 +471,8 @@ def getSSHFactory(commands, prompt, keypath, **users):
         checkers.InMemoryUsernamePasswordDatabaseDontUse(**users))
 
     pubKeyString, privKeyString = getRSAKeys(keypath)
-
-    sshFactory.publicKeys = {'ssh-rsa': keys.Key.fromString(data=pubKeyString)}
+    #test = keys.Key.fromString(data=pubKeyString)
+    sshFactory.publicKeys = {'ssh-rsa': pubKeyString}
     sshFactory.privateKeys = {
         'ssh-rsa': keys.Key.fromString(data=privKeyString)
     }
@@ -486,7 +488,7 @@ def getSSHFactory(commands, prompt, keypath, **users):
 def runServer(commands,
               prompt="$ ",
               keypath=".",
-              interface='',
+              interface='127.0.0.1',
               port=2222,
               **users):
     sshFactory = getSSHFactory(commands, prompt, keypath, **users)
@@ -497,7 +499,7 @@ def runServer(commands,
 def startThreadedServer(commands,
                         prompt="$ ",
                         keypath=".",
-                        interface='',
+                        interface='127.0.0.1',
                         port=2222,
                         **users):
     """

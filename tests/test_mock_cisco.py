@@ -1,6 +1,3 @@
-#!/usr/bin/which python
-#
-
 import time
 import unittest
 import tempfile
@@ -8,7 +5,7 @@ import shutil
 
 import MockSSH
 import paramiko
-from examples.mock_cisco import commands
+from mock_cisco import commands
 
 
 def recv_all(channel):
@@ -30,13 +27,13 @@ class MockCiscoTestCase(unittest.TestCase):
             commands,
             prompt="hostname>",
             keypath=cls.keypath,
-            interface="localhost",
+            interface="127.0.0.1",
             port=9999,
             **users)
 
     @classmethod
     def tearDownClass(cls):
-        print "tearDownClass"
+        print("tearDownClass")
         MockSSH.stopThreadedServer()
         shutil.rmtree(cls.keypath)
 
@@ -60,7 +57,7 @@ class MockCiscoTestCase(unittest.TestCase):
             '127.0.0.1',
             username='testadmin',
             password='x',
-            port=9999,
+            port=2222,
             look_for_keys=False)
 
         channel = ssh.invoke_shell()
@@ -75,7 +72,7 @@ class MockCiscoTestCase(unittest.TestCase):
     def test_password_reset_success(self):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.WarningPolicy())
-        ssh.connect('127.0.0.1', username='testadmin', password='x', port=9999)
+        ssh.connect('127.0.0.1', username='testadmin', password='x', port=2222)
 
         channel = ssh.invoke_shell()
         # read prompt

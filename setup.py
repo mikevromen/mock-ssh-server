@@ -18,7 +18,7 @@ COPYRIGHT = 'Copyright 2013-2016, Nicolas Couture'
 
 LICENSE = 'BSD'
 
-VERSION = '1.4.5'
+VERSION = '1.4.5-3'
 
 CLASSIFIERS = [
     'Development Status :: 5 - Production/Stable',
@@ -57,7 +57,7 @@ PACKAGES = find_packages(exclude=['tests', 'examples'])
 
 PACKAGE_DATA = {'mocksshy': ['*.hy']}
 
-INSTALL_REQUIRES = ['Twisted==16.7.0rc2', 'paramiko==2.1.1', 'hy==0.11.1']
+INSTALL_REQUIRES = ['Twisted==21.2.0', 'paramiko==2.7.2', 'hy==0.20.0']
 
 KEYWORDS = [
     'ssh server emulation', 'ssh server testing', 'mock ssh', 'script ssh'
